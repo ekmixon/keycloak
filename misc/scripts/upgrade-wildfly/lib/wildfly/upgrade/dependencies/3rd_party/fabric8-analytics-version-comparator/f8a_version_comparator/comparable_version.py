@@ -61,10 +61,7 @@ class ComparableVersion:
         This rich comparison implies whether self == other
         """
         # don't call compare_to(None)
-        if other is None:
-            return False
-
-        return self.compare_to(other) == 0
+        return False if other is None else self.compare_to(other) == 0
 
     def __ne__(self, other):
         """Compare ComparableVersion objects for equality.
@@ -72,10 +69,7 @@ class ComparableVersion:
         This rich comparison implies whether self != other
         """
         # don't call compare_to(None)
-        if other is None:
-            return True
-
-        return self.compare_to(other) != 0
+        return True if other is None else self.compare_to(other) != 0
 
     def __lt__(self, other):
         """Compare ComparableVersion objects.
@@ -83,10 +77,7 @@ class ComparableVersion:
         This rich comparison implies whether self < other
         """
         # don't call compare_to(None)
-        if other is None:
-            return False
-
-        return self.compare_to(other) == -1
+        return False if other is None else self.compare_to(other) == -1
 
     def __le__(self, other):
         """Compare ComparableVersion objects.
@@ -94,10 +85,7 @@ class ComparableVersion:
         This rich comparison implies whether self <= other
         """
         # don't call compare_to(None)
-        if other is None:
-            return False
-
-        return self.compare_to(other) <= 0
+        return False if other is None else self.compare_to(other) <= 0
 
     def __gt__(self, other):
         """Compare ComparableVersion objects.
@@ -105,10 +93,7 @@ class ComparableVersion:
         This rich comparison implies whether self > other
         """
         # don't call compare_to(None)
-        if other is None:
-            return True
-
-        return self.compare_to(other) == 1
+        return True if other is None else self.compare_to(other) == 1
 
     def __ge__(self, other):
         """Compare ComparableVersion objects.
@@ -116,24 +101,20 @@ class ComparableVersion:
         This rich comparison implies whether self >= other
         """
         # don't call compare_to(None)
-        if other is None:
-            return True
-
-        return self.compare_to(other) >= 0
+        return True if other is None else self.compare_to(other) >= 0
 
     def parse_version(self):
         """Parse version."""
         # TODO: reduce cyclomatic complexity
         ref_list = ListItem()
         items = ref_list
-        parse_stack = list()
         version = self.version.lower()
-        parse_stack.append(ref_list)
+        parse_stack = [ref_list]
         _is_digit = False
 
         _start_index = 0
 
-        for _ch in range(0, len(version)):
+        for _ch in range(len(version)):
 
             ver_char = version[_ch]
 
@@ -190,10 +171,7 @@ class ComparableVersion:
     def parse_item(_is_digit, buf):
         """Wrap items in version in respective object class."""
         # TODO: make this function static (it does not need 'self')
-        if _is_digit:
-            return IntegerItem(buf)
-
-        return StringItem(buf, False)
+        return IntegerItem(buf) if _is_digit else StringItem(buf, False)
 
     def compare_to(self, obj: typing.Union["ComparableVersion", str]):
         """Compare two ComparableVersion objects."""

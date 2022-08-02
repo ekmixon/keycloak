@@ -124,11 +124,10 @@ def isWellFormedWildflyTag(tag):
 
     Exits with error if not.
     """
-    if tag and not re.search(r'(\d\.){3}((Alpha|Beta|CR)\d|Final)', tag):
-        getModuleLogger().error("Invalid Wildfly tag '%s', exiting!" % tag)
-        sys.exit(1)
-    else:
+    if not tag or re.search(r'(\d\.){3}((Alpha|Beta|CR)\d|Final)', tag):
         return tag
+    getModuleLogger().error("Invalid Wildfly tag '%s', exiting!" % tag)
+    sys.exit(1)
 
 def saveUrlToNamedTemporaryFile(baseUrl):
     """
@@ -192,7 +191,7 @@ def getLogger(loggerName = 'Upgrade Wildfly for Keycloak', loggerFormatter = '%(
     'loggerFormatter' or setup such a logger if it doesn't exist yet.
     """
     global _moduleLoggers
-    if not loggerName in _moduleLoggers:
+    if loggerName not in _moduleLoggers:
         _moduleLoggers[loggerName] = setupLogger(loggerName, loggerFormatter)
 
     return _moduleLoggers[loggerName]
@@ -223,7 +222,7 @@ def getStepLogger():
 # Various XML search related helper routines
 #
 
-def getElementsByXPath(xmlTree, xPath, nameSpace = { "pom" : "%s" % _pom_ns }):
+def getElementsByXPath(xmlTree, xPath, nameSpace={"pom": f"{_pom_ns}"}):
     """
     Given the XML tree return the list of elements matching the 'xPath' from
     the XML 'nameSpace'.
@@ -236,7 +235,7 @@ def getElementsByXPath(xmlTree, xPath, nameSpace = { "pom" : "%s" % _pom_ns }):
     """
     return xmlTree.xpath(xPath, namespaces = nameSpace)
 
-def getElementsByXPathFromRemoteXml(xmlUrl, xPath, nameSpace = { "pom" : "%s" % _pom_ns }, errorMessage = None, expectedElementsCount = None):
+def getElementsByXPathFromRemoteXml(xmlUrl, xPath, nameSpace={"pom": f"{_pom_ns}"}, errorMessage = None, expectedElementsCount = None):
     """
     Given the URL of the remote XML file as 'xmlUrl' return the list of
     elements matching the 'xPath' from the XML 'nameSpace'.
@@ -262,7 +261,11 @@ def getPomDependencyByArtifactId(xmlTree, artifactIdText):
 
     Returns empty list if no such element with 'artifactIdText' is found.
     """
-    return xmlTree.xpath('/pom:project/pom:dependencyManagement/pom:dependencies/pom:dependency/pom:artifactId[text()="%s"]' % artifactIdText, namespaces = { "pom" : "%s" % _pom_ns })
+    return xmlTree.xpath(
+        '/pom:project/pom:dependencyManagement/pom:dependencies/pom:dependency/pom:artifactId[text()="%s"]'
+        % artifactIdText,
+        namespaces={"pom": f"{_pom_ns}"},
+    )
 
 def getPomProperty(xmlTree, propertyText):
     """
@@ -271,7 +274,10 @@ def getPomProperty(xmlTree, propertyText):
 
     Returns empty list if no such element with 'propertyText' is found.
     """
-    return xmlTree.xpath('/pom:project/pom:properties/pom:%s' % propertyText, namespaces = { "pom" : "%s" % _pom_ns })
+    return xmlTree.xpath(
+        f'/pom:project/pom:properties/pom:{propertyText}',
+        namespaces={"pom": f"{_pom_ns}"},
+    )
 
 def getPomPropertyFromRemoteXml(xmlUrl, propertyText, errorMessage = None, expectedElementsCount = None):
     """
@@ -327,8 +333,7 @@ def getXmlRoot(filename):
     Exit with error in the case of a failure.
     """
     try:
-        xmlRoot = lxml.etree.parse(filename).getroot()
-        return xmlRoot
+        return lxml.etree.parse(filename).getroot()
     except lxml.etree.XMLSyntaxError:
         getXmlRootFailureMessage = (
             "Failed to get the root element of the XML tree from '%s' file! "
@@ -373,7 +378,7 @@ def getProductNamesForKeycloakPomProfile(profile = 'community'):
     )
 
     # Absolute path to main Keycloak pom.xml within the repo
-    mainKeycloakPomPath = getKeycloakGitRepositoryRoot() + "/pom.xml"
+    mainKeycloakPomPath = f"{getKeycloakGitRepositoryRoot()}/pom.xml"
     keycloakPomXmlTreeRoot = getXmlRoot(mainKeycloakPomPath)
     pomProfileIdElem = getElementsByXPath(keycloakPomXmlTreeRoot, '/pom:project/pom:profiles/pom:profile/pom:id[text()="%s"]' % profile)
     _logErrorAndExitIf(
@@ -412,15 +417,7 @@ def getNumericArtifactVersion(gavDictionary, gavDictionaryKey):
        subdictionary value.
     """
     gavDictionaryValue = gavDictionary[gavDictionaryKey]
-    if not isinstance(gavDictionaryValue, dict):
-        # First check if obtained artifact version is really numeric
-        _logErrorAndExitIf(
-            "Extracted '%s' artifact version isn't numeric: '%s'!" % (gavDictionaryKey, gavDictionaryValue),
-            not re.match(r'\d.*', gavDictionaryValue)
-        )
-        return gavDictionaryValue
-
-    else:
+    if isinstance(gavDictionaryValue, dict):
         subKey = gavDictionaryValue.keys()
         # Python starting from 3.3.1 returns dict_keys instead of a list when
         # calling dictionary items(). Convert dict_keys back to list if needed
@@ -434,12 +431,12 @@ def getNumericArtifactVersion(gavDictionary, gavDictionaryKey):
         )
         # Fetch the numeric artifact version from the subdictionary value
         gavDictionaryValue = gavDictionary[gavDictionaryKey][subKey[0]]
-        # Finally check if obtained artifact version is really numeric
-        _logErrorAndExitIf(
-            "Extracted '%s' artifact version isn't numeric: '%s'!" % (gavDictionaryKey, gavDictionaryValue),
-            not re.match(r'\d.*', gavDictionaryValue)
-        )
-        return gavDictionaryValue
+    # First check if obtained artifact version is really numeric
+    _logErrorAndExitIf(
+        "Extracted '%s' artifact version isn't numeric: '%s'!" % (gavDictionaryKey, gavDictionaryValue),
+        not re.match(r'\d.*', gavDictionaryValue)
+    )
+    return gavDictionaryValue
 
 def loadGavDictionaryFromGavFile(gavFile):
     """
@@ -468,7 +465,7 @@ def loadGavDictionaryFromGavFile(gavFile):
 
     return gavDictionary
 
-def loadGavDictionaryFromXmlFile(xmlFile, xPathPrefix = '/pom:project/pom:dependencyManagement/pom:dependencies/pom:dependency/pom:', nameSpace = { "pom" : "%s" % _pom_ns }):
+def loadGavDictionaryFromXmlFile(xmlFile, xPathPrefix = '/pom:project/pom:dependencyManagement/pom:dependencies/pom:dependency/pom:', nameSpace={"pom": f"{_pom_ns}"}):
     """
     Convert XML dependencies from 'xmlFile' into Maven GAV
     (groupId:artifactId:version) Python dictionary, where
@@ -521,7 +518,12 @@ def loadGavDictionaryFromXmlFile(xmlFile, xPathPrefix = '/pom:project/pom:depend
                 # 'project.version' value. Create a custom XPath query to fetch the actual numeric value
                 if not propertyElem:
                     # Build xpath from version value, turn e.g. 'project.version' to '/pom:project/pom:version'
-                    customXPath = _empty_string.join(list(map(lambda x: '/pom:' + x, gavDictValue.split('.'))))
+                    customXPath = _empty_string.join(
+                        list(
+                            map(lambda x: f'/pom:{x}', gavDictValue.split('.'))
+                        )
+                    )
+
                     # Fetch the numeric version
                     propertyElem = getElementsByXPath(xmlRoot, customXPath)
                     # Exit with error if it wasn't possible to determine the artifact version even this way
@@ -535,7 +537,7 @@ def loadGavDictionaryFromXmlFile(xmlFile, xPathPrefix = '/pom:project/pom:depend
 
             # Store the numeric artifact version into GAV dictionary, keeping
             # the original POM <property> name as the key of the child dictionary
-            gavDictionary[gavDictKey] = { '%s' % childDictKey : '%s' % gavDictValue }
+            gavDictionary[gavDictKey] = {f'{childDictKey}': f'{gavDictValue}'}
 
     return gavDictionary
 
@@ -789,7 +791,7 @@ def _scanMainKeycloakPomFileForUnknownArtifacts():
     Logs error message and exits with error if action for a particular artifact is unknown.
     """
     # Absolute path to main Keycloak pom.xml within the repo
-    mainKeycloakPomPath = getKeycloakGitRepositoryRoot() + "/pom.xml"
+    mainKeycloakPomPath = f"{getKeycloakGitRepositoryRoot()}/pom.xml"
 
     unknownArtifactMessage = (
             "Found so far unknown '%s' artifact in the main Keycloak pom.xml file!\n"
@@ -820,7 +822,7 @@ def performMainKeycloakPomFileUpdateTask(wildflyPomFile, wildflyCorePomFile, for
     wildflyCoreXmlTreeRoot = getXmlRoot(wildflyCorePomFile)
 
     # Absolute path to main Keycloak pom.xml within the repo
-    mainKeycloakPomPath = getKeycloakGitRepositoryRoot() + "/pom.xml"
+    mainKeycloakPomPath = f"{getKeycloakGitRepositoryRoot()}/pom.xml"
     keycloakXmlTreeRoot = getXmlRoot(mainKeycloakPomPath)
 
     taskLogger = getTaskLogger('Update main Keycloak pom.xml')
@@ -842,8 +844,9 @@ def performMainKeycloakPomFileUpdateTask(wildflyPomFile, wildflyCorePomFile, for
                 wildflyElem = getPomProperty(wildflyXmlTreeRoot, wildflyElemName)
 
         if wildflyElem:
-            keycloakElem = getPomProperty(keycloakXmlTreeRoot, keycloakElemName)
-            if keycloakElem:
+            if keycloakElem := getPomProperty(
+                keycloakXmlTreeRoot, keycloakElemName
+            ):
                 if keycloakElemName in _excludedProperties:
                     stepLogger.debug(
                         "Not updating version of '%s' from '%s' to '%s' since the artifact is excluded!" %
@@ -887,7 +890,8 @@ def performAdapterGalleonPackPomFileUpdateTask(wildflyCorePomFile, forceUpdates 
     wildflyGalleonMavenPluginWildflyCoreVersion = wildflyGalleonMavenPluginWildflyCoreElem[0].text
 
     # Absolute path to the pom.xml file of the adapter Galleon pack within the repo
-    adapterGalleonPackPomPath = getKeycloakGitRepositoryRoot() + "/distribution/galleon-feature-packs/adapter-galleon-pack/pom.xml"
+    adapterGalleonPackPomPath = f"{getKeycloakGitRepositoryRoot()}/distribution/galleon-feature-packs/adapter-galleon-pack/pom.xml"
+
     adapterGalleonPackXmlTreeRoot = getXmlRoot(adapterGalleonPackPomPath)
     wildflyGalleonMavenPluginAdapterGalleonPackElem = getPomProperty(adapterGalleonPackXmlTreeRoot, wildflyGalleonMavenPluginProperty)
     wildflyGalleonMavenPluginKeycloakVersion = wildflyGalleonMavenPluginAdapterGalleonPackElem[0].text
@@ -929,10 +933,16 @@ def updateAdapterLicenseFile(gavDictionary, xPathPrefix, nameSpace, licenseFile,
 
     if not nameSpace:
         nsPrefix = ''
-        dependencyElemXPath = '|'.join(map(lambda e: xPathPrefix + '/%s' % e, _gav_elements))
+        dependencyElemXPath = '|'.join(
+            map(lambda e: xPathPrefix + f'/{e}', _gav_elements)
+        )
+
     else:
         nsPrefix = nameSpace.keys()
-        dependencyElemXPath = '|'.join(map(lambda e: xPathPrefix + '/%s:%s' % (nsPrefix, e), _gav_elements))
+        dependencyElemXPath = '|'.join(
+            map(lambda e: xPathPrefix + f'/{nsPrefix}:{e}', _gav_elements)
+        )
+
 
     xmlDependencyElements = getElementsByXPath(licenseFileXmlTreeRoot, dependencyElemXPath, nameSpace)
     # Divide original list into sublists by three elements -- one sublist per GAV entry
@@ -992,14 +1002,26 @@ def updateAdapterLicenseFile(gavDictionary, xPathPrefix, nameSpace, licenseFile,
                 repositoryRoot = getKeycloakGitRepositoryRoot()
                 for root, dirs, files in os.walk(LICENSE_FILE_PARENT_DIR):
                     for filename in files:
-                        if re.search(re.escape(artifactIdElem.text) + r',' + re.escape(currentArtifactVersion), filename):
+                        if re.search(
+                            f'{re.escape(artifactIdElem.text)},{re.escape(currentArtifactVersion)}',
+                            filename,
+                        ):
                             currentFilename = filename
                             currentFileName = currentFilename.replace(repositoryRoot, '').rstrip()
                             newFilename = currentFilename.replace(currentArtifactVersion, expectedArtifactVersion)
                             # Delete & recreate the TXT file if it previously existed (be idempotent)
                             if os.path.isfile(os.path.join(root, newFilename)):
                                 os.remove(os.path.join(root, newFilename))
-                            check_call(['git', 'mv', "%s" % os.path.join(root, currentFilename), "%s" % os.path.join(root, newFilename)], cwd = repositoryRoot)
+                            check_call(
+                                [
+                                    'git',
+                                    'mv',
+                                    f"{os.path.join(root, currentFilename)}",
+                                    f"{os.path.join(root, newFilename)}",
+                                ],
+                                cwd=repositoryRoot,
+                            )
+
                 # Subtask: Update artifact version in license URL to the expected one
                 dependencyElem = groupIdElem.getparent()
                 urlElements = getElementsByXPath(dependencyElem, './licenses/license/url', nameSpace)
@@ -1015,14 +1037,15 @@ def updateAdapterLicenseFile(gavDictionary, xPathPrefix, nameSpace, licenseFile,
                     expectedArtifactVersion = re.sub(r'.redhat-\d+$', '', expectedArtifactVersion)
                 # First handle special form of version numbers in release URLs used by org.bouncycastle artifacts
                 if artifactIdElem.text.endswith('jdk15on'):
-                    bouncyCastleMajorVersion = re.match(r'^(\d)\.', expectedArtifactVersion).group(1)
-                    bouncyCastleMinorVersion = re.match(r'^\d+\.(\d+)', expectedArtifactVersion).group(1)
+                    bouncyCastleMajorVersion = re.match(r'^(\d)\.', expectedArtifactVersion)[1]
+                    bouncyCastleMinorVersion = re.match(r'^\d+\.(\d+)', expectedArtifactVersion)[1]
                     if bouncyCastleMajorVersion and bouncyCastleMinorVersion:
-                        urlNotationOfExpectedBouncyCastleVersion = 'r' + bouncyCastleMajorVersion + 'rv' + bouncyCastleMinorVersion
+                        urlNotationOfExpectedBouncyCastleVersion = f'r{bouncyCastleMajorVersion}rv{bouncyCastleMinorVersion}'
+
                         try:
-                            # Extract older (even archaic) 'major.minor.micro' artifact version substring from the URL
-                            oldMajorMinorMicroVersion = re.search(r'(r\d+rv\d{2,})', urlElem.text).group(1)
-                            if oldMajorMinorMicroVersion:
+                            if oldMajorMinorMicroVersion := re.search(
+                                r'(r\d+rv\d{2,})', urlElem.text
+                            )[1]:
                                 stepLogger.debug(
                                     "Replacing former '%s' of '%s' artifact version in the URL with the new '%s' version" %
                                     (oldMajorMinorMicroVersion, gavDictKey, expectedArtifactVersion)
@@ -1039,9 +1062,9 @@ def updateAdapterLicenseFile(gavDictionary, xPathPrefix, nameSpace, licenseFile,
                         )
                 else:
                     try:
-                        # Extract older (even archaic) 'major.minor.micro' artifact version substring from the URL
-                        oldMajorMinorMicroVersion = re.search(r'(\d+\.\d+\.\d+)', urlElem.text).group(1)
-                        if oldMajorMinorMicroVersion:
+                        if oldMajorMinorMicroVersion := re.search(
+                            r'(\d+\.\d+\.\d+)', urlElem.text
+                        )[1]:
                             stepLogger.debug(
                                 "Replacing former '%s' version of the '%s' artifact in the URL with the new '%s' version" %
                                 (oldMajorMinorMicroVersion, gavDictKey, expectedArtifactVersion)
@@ -1084,8 +1107,6 @@ def updateAdapterLicenseFile(gavDictionary, xPathPrefix, nameSpace, licenseFile,
                 "Skipping '%s' specific '%s' license dependency since not present in '%s' list of all Maven artifacts!" %
                 (productName, gavDictKey, parentProductName)
             )
-            pass
-
     lxml.etree.ElementTree(licenseFileXmlTreeRoot).write(licenseFile, encoding = "UTF-8", pretty_print = True, xml_declaration = True)
     relativeLicenseFilePath = licenseFile.replace(getKeycloakGitRepositoryRoot(), '.')
     stepLogger.info("Done syncing artifact version changes to: '%s'!" % relativeLicenseFilePath)
@@ -1117,7 +1138,7 @@ def performKeycloakAdapterLicenseFilesUpdateTask(wildflyPomFile, wildflyCorePomF
 
     isTaskLogged = False
     (productName, productNameFull) = getProductNamesForKeycloakPomProfile(profile = PROFILE)
-    taskLogger = getTaskLogger('Update %s Adapters' % productNameFull)
+    taskLogger = getTaskLogger(f'Update {productNameFull} Adapters')
     gitRepositoryRoot = getKeycloakGitRepositoryRoot()
     for root, dirs, files in os.walk(gitRepositoryRoot):
         if not isTaskLogged:
@@ -1128,7 +1149,10 @@ def performKeycloakAdapterLicenseFilesUpdateTask(wildflyPomFile, wildflyCorePomF
             taskLogger.info(taskLabel)
             isTaskLogged = True
         for filename in files:
-            if re.search(r'distribution.*/src/main/resources/licenses/%s/licenses.xml' % productName.lower(), os.path.join(root, filename)):
+            if re.search(
+                f'distribution.*/src/main/resources/licenses/{productName.lower()}/licenses.xml',
+                os.path.join(root, filename),
+            ):
                 updateAdapterLicenseFile(
                     unitedGavDictionary,
                     xPathPrefix = '/licenseSummary/dependencies/dependency',
@@ -1149,7 +1173,7 @@ def performRhssoAdapterLicenseFilesUpdateTask(wildflyPomFile, wildflyCorePomFile
 
     isTaskLogged = False
     (productName, productNameFull) = getProductNamesForKeycloakPomProfile(profile = PROFILE)
-    taskLogger = getTaskLogger('Update %s Adapters' % productNameFull)
+    taskLogger = getTaskLogger(f'Update {productNameFull} Adapters')
 
     gavFileUrl = None
     print("\nPlease specify the URL of the GAV file to use for %s adapter updates:" % productNameFull.upper())
@@ -1173,7 +1197,10 @@ def performRhssoAdapterLicenseFilesUpdateTask(wildflyPomFile, wildflyCorePomFile
             taskLogger.info(taskLabel)
             isTaskLogged = True
         for filename in files:
-            if re.search(r'distribution.*/src/main/resources/licenses/%s/licenses.xml' % productName.lower(), os.path.join(root, filename)):
+            if re.search(
+                f'distribution.*/src/main/resources/licenses/{productName.lower()}/licenses.xml',
+                os.path.join(root, filename),
+            ):
                 updateAdapterLicenseFile(
                     gavDictionary,
                     xPathPrefix = '/licenseSummary/dependencies/dependency',
@@ -1195,14 +1222,15 @@ def performDeprecatedWildflyTestingModuleUpdateTask(forceUpdates = False):
     """
     # Prepare / hold the expected future values of the properties of the
     # deprecated Wildfly testing module present in Arquillian testsuite
-    deprecatedWildflyModuleProperties = {}
+    deprecatedWildflyModuleProperties = {
+        'wildfly.deprecated.version': getPomPropertyFromRemoteXml(
+            _keycloak_github_master_main_pom_base_url,
+            'wildfly.version',
+            errorMessage="Unable to locate 'wildfly.version' property element in the remote XML file!",
+            expectedElementsCount=1,
+        )[0].text
+    }
 
-    deprecatedWildflyModuleProperties['wildfly.deprecated.version'] = getPomPropertyFromRemoteXml(
-        _keycloak_github_master_main_pom_base_url,
-        'wildfly.version',
-        errorMessage = "Unable to locate 'wildfly.version' property element in the remote XML file!",
-        expectedElementsCount = 1
-    )[0].text
 
     deprecatedWildflyModuleProperties['wildfly.deprecated.wildfly.core.version'] = getPomPropertyFromRemoteXml(
         _keycloak_github_master_main_pom_base_url,
@@ -1223,10 +1251,11 @@ def performDeprecatedWildflyTestingModuleUpdateTask(forceUpdates = False):
     stepLogger = getStepLogger()
 
     # Absolute path to main Keycloak pom.xml within the local repo
-    mainKeycloakPomPath = getKeycloakGitRepositoryRoot() + "/pom.xml"
+    mainKeycloakPomPath = f"{getKeycloakGitRepositoryRoot()}/pom.xml"
     mainKeycloakPomXmlRoot = getXmlRoot(mainKeycloakPomPath)
     # Absolute path to pom.xml file of the Arquillian testsuite within the local repo
-    arqTestSuitePomPath = getKeycloakGitRepositoryRoot() + "/testsuite/integration-arquillian/pom.xml"
+    arqTestSuitePomPath = f"{getKeycloakGitRepositoryRoot()}/testsuite/integration-arquillian/pom.xml"
+
     arqTestSuitePomXmlRoot = getXmlRoot(arqTestSuitePomPath)
 
     # Determine the current value of the 'wildfly.version' property element
@@ -1260,7 +1289,7 @@ def performDeprecatedWildflyTestingModuleUpdateTask(forceUpdates = False):
            compareMavenVersions(currentLocalWildflyCoreVersion, deprecatedWildflyModuleProperties['wildfly.deprecated.wildfly.core.version']) > 0
     ):
 
-        for deprecatedProperty in deprecatedWildflyModuleProperties.keys():
+        for deprecatedProperty in deprecatedWildflyModuleProperties:
             arqTestSuitePropertyElem = getPomProperty(arqTestSuitePomXmlRoot, deprecatedProperty)
             _logErrorAndExitIf(
                 "Unable to locate the '%s' element in the pom.xml file of the Arquillian testsuite!",
@@ -1291,16 +1320,19 @@ def performJbossParentVersionUpdateTask(wildflyTag, wildflyPomFile, wildflyCoreP
     stepLogger = getStepLogger()
 
     # Absolute path to main Keycloak pom.xml within the local repo
-    mainKeycloakPomPath = getKeycloakGitRepositoryRoot() + "/pom.xml"
+    mainKeycloakPomPath = f"{getKeycloakGitRepositoryRoot()}/pom.xml"
     mainKeycloakPomXmlRoot = getXmlRoot(mainKeycloakPomPath)
     # Absolute path to the Keycloak's 'boms/pom.xml' location within the local repo
-    keycloakBomsPomPath = getKeycloakGitRepositoryRoot() + "/boms/pom.xml"
+    keycloakBomsPomPath = f"{getKeycloakGitRepositoryRoot()}/boms/pom.xml"
     keycloakBomsPomXmlRoot = getXmlRoot(keycloakBomsPomPath)
 
     # Retrieve the current versions of the 'jboss-parent' from the:
-    jbossParentVersionElems = {}
-    # Main pom.xml file of the Wildfly repository
-    jbossParentVersionElems['from.main.wildfly.pom']      = getElementsByXPath(getXmlRoot(wildflyPomFile), '/pom:project/pom:parent/pom:version')
+    jbossParentVersionElems = {
+        'from.main.wildfly.pom': getElementsByXPath(
+            getXmlRoot(wildflyPomFile), '/pom:project/pom:parent/pom:version'
+        )
+    }
+
     # Main pom.xml file of the Wildfly Core repository
     jbossParentVersionElems['from.main.wildfly.core.pom'] = getElementsByXPath(getXmlRoot(wildflyCorePomFile), '/pom:project/pom:parent/pom:version')
     # Main pom.xml file of the local Keycloak repository

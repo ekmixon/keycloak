@@ -87,7 +87,10 @@ def processParameters(tag, verbose, force, update_rh_sso_adapters):
 
 def upgradeKeycloakToWildflyTag(tag, forceUpdates = False, ssoAdapters = False):
     wildflyTag = wu.isWellFormedWildflyTag(tag)
-    wildflyPomBaseUrl = "https://github.com/wildfly/wildfly/raw/%s/pom.xml" % wildflyTag
+    wildflyPomBaseUrl = (
+        f"https://github.com/wildfly/wildfly/raw/{wildflyTag}/pom.xml"
+    )
+
 
     taskLogger = wu.getTaskLogger("Rebase Keycloak on top of Wildfly '%s'" % wildflyTag)
     taskLogger.info("Retrieving Wildfly's pom.xml for tag: %s" % wildflyTag)
@@ -95,8 +98,11 @@ def upgradeKeycloakToWildflyTag(tag, forceUpdates = False, ssoAdapters = False):
     wildflyPomXmlRoot = wu.getXmlRoot(wildflyPomFile)
 
     wildflyCoreTag = wu.isWellFormedWildflyTag( wu.getPomProperty(wildflyPomXmlRoot, "version.org.wildfly.core")[0].text )
-    wildflyCorePomBaseUrl = "https://github.com/wildfly/wildfly-core/raw/%s/pom.xml" % wildflyCoreTag
-    taskLogger.info("Retrieving Wildfly-Core pom.xml for tag: %s" % wildflyCoreTag)
+    wildflyCorePomBaseUrl = (
+        f"https://github.com/wildfly/wildfly-core/raw/{wildflyCoreTag}/pom.xml"
+    )
+
+    taskLogger.info(f"Retrieving Wildfly-Core pom.xml for tag: {wildflyCoreTag}")
     wildflyCorePomFile = wu.saveUrlToNamedTemporaryFile(wildflyCorePomBaseUrl)
 
     if wildflyPomFile != None and wildflyCorePomFile != None:

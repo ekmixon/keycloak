@@ -35,9 +35,7 @@ class IntegerItem(Item):
         """Compare two integers."""
         if self.value.__lt__(cmp_value):
             return -1
-        if self.value.__gt__(cmp_value):
-            return 1
-        return 0
+        return 1 if self.value.__gt__(cmp_value) else 0
 
     def compare_to(self, item):
         """Compare two maven versions."""
@@ -51,7 +49,7 @@ class IntegerItem(Item):
         if isinstance(item, ListItem):
             return 1
         else:
-            raise ValueError("invalid item" + str(type(item)))
+            raise ValueError(f"invalid item{str(type(item))}")
 
     def to_string(self):
         """Return string value of version."""
@@ -99,7 +97,7 @@ class StringItem(Item):
         q_index = None
         if qualifier in self.qualifiers:
             q_index = self.qualifiers.index(qualifier)
-        q_index_not_found = str(len(self.qualifiers)) + "-" + qualifier
+        q_index_not_found = f"{len(self.qualifiers)}-{qualifier}"
 
         return str(q_index) if q_index is not None else q_index_not_found
 
@@ -107,15 +105,15 @@ class StringItem(Item):
         """Compare two strings."""
         if val1.__lt__(val2):
             return -1
-        if val1.__gt__(val2):
-            return 1
-        return 0
+        return 1 if val1.__gt__(val2) else 0
 
     def compare_to(self, item):
         """Compare two maven versions."""
         if item is None:
-            temp = self.str_cmp(self.comparable_qualifier(self.value), self.release_version_index)
-            return temp
+            return self.str_cmp(
+                self.comparable_qualifier(self.value), self.release_version_index
+            )
+
         if isinstance(item, IntegerItem):
             return -1
         if isinstance(item, StringItem):
@@ -126,7 +124,7 @@ class StringItem(Item):
         if isinstance(item, ListItem):
             return -1
         else:
-            raise ValueError("invalid item" + str(type(item)))
+            raise ValueError(f"invalid item{str(type(item))}")
 
     def to_string(self):
         """Return value in string form."""
@@ -142,7 +140,7 @@ class ListItem(Item):
 
     def __init__(self):
         """Initialize string value of version."""
-        self.array_list = list()
+        self.array_list = []
 
     def add_item(self, item):
         """Add item to array list."""
@@ -181,24 +179,24 @@ class ListItem(Item):
             return -1
         if isinstance(item, StringItem):
             return 1
-        if isinstance(item, ListItem):
-            left_iter = iter(self.array_list)
-            right_iter = iter(item.get_list())
+        if not isinstance(item, ListItem):
+            raise ValueError(f"invalid item{str(type(item))}")
+        left_iter = iter(self.array_list)
+        right_iter = iter(item.get_list())
 
-            while True:
-                l_obj = next(left_iter, None)
-                r_obj = next(right_iter, None)
-                if l_obj is None and r_obj is None:
-                    break
-                result = 0
-                if l_obj is None:
-                    if r_obj is not None:
-                        result = -1 * r_obj.compare_to(l_obj)
-                else:
-                    result = l_obj.compare_to(r_obj)
-                if result != 0:
-                    return result
+        while True:
+            l_obj = next(left_iter, None)
+            r_obj = next(right_iter, None)
+            if l_obj is None and r_obj is None:
+                break
+            result = 0
+            result = (
+                -1 * r_obj.compare_to(l_obj)
+                if l_obj is None
+                else l_obj.compare_to(r_obj)
+            )
 
-            return 0
-        else:
-            raise ValueError("invalid item" + str(type(item)))
+            if result != 0:
+                return result
+
+        return 0
